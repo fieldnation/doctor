@@ -10,7 +10,7 @@ import (
 // Doctor represents a worker who will perform different
 // types of health checks periodically.
 type Doctor struct {
-	appts     []appt
+	appts     []*appointment
 	examining bool
 }
 
@@ -22,12 +22,31 @@ type options struct {
 	interval time.Duration
 }
 
-type appt struct {
+type appointment struct {
 	healthCheck HealthCheck
 	opts        options
 
-	mu           sync.RWMutex
-	billOfHealth []byte
+	// mu protects the bill of health
+	mu     sync.RWMutex
+	result BillOfHealth
+}
+
+func (a *appointment) setBillOfHealth(r BillOfHealth) {
+	a.mu.Lock()
+	a.result = r
+	a.mu.Unlock()
+}
+
+func (a *appointment) billOfHealth() BillOfHealth {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.result
+}
+
+// BillOfHealth describes the results of a doctor appointment.
+type BillOfHealth struct {
+	Body        []byte `json:"body"`
+	ContentType string `json:"content_type"`
 }
 
 // New returns a new doctor.
@@ -65,10 +84,13 @@ func (d *Doctor) Schedule(h HealthCheck, opts ...Options) error {
 	}
 
 	// create a new appointment
-	a := appt{
-		healthCheck:  h,
-		billOfHealth: []byte("{\"report\": \"no health check results\""),
-		opts:         options{interval: 5 * time.Second},
+	a := &appointment{
+		healthCheck: h,
+		result: BillOfHealth{
+			Body:        []byte("{\"report\": \"no health check results\""),
+			ContentType: "application/json",
+		},
+		opts: options{interval: 5 * time.Second},
 	}
 
 	// set the request options on that appointment
@@ -103,7 +125,13 @@ func (d *Doctor) Examine() (<-chan bool, error) {
 				select {
 				case <-ticker.C:
 					go func() {
-						d.appts[k].healthCheck()
+						body, contentType, err := d.appts[k].healthCheck()
+						if err != nil {
+							close(quit)
+							fmt.Printf("log: error: %s\n", err)
+							return
+						}
+						d.appts[k].setBillOfHealth(BillOfHealth{body, contentType})
 					}()
 				case <-quit:
 					ticker.Stop()
@@ -127,4 +155,13 @@ func (d *Doctor) Examine() (<-chan bool, error) {
 	}
 
 	return nil, nil
+}
+
+// Results returns a list of bills of health.
+func (d *Doctor) Results() []BillOfHealth {
+	boh := []BillOfHealth{}
+	for _, a := range d.appts {
+		boh = append(boh, a.billOfHealth())
+	}
+	return boh
 }
