@@ -31,13 +31,13 @@ type appointment struct {
 	result BillOfHealth
 }
 
-func (a *appointment) setBillOfHealth(r BillOfHealth) {
+func (a *appointment) set(r BillOfHealth) {
 	a.mu.Lock()
 	a.result = r
 	a.mu.Unlock()
 }
 
-func (a *appointment) billOfHealth() BillOfHealth {
+func (a *appointment) get() BillOfHealth {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.result
@@ -45,6 +45,7 @@ func (a *appointment) billOfHealth() BillOfHealth {
 
 // BillOfHealth describes the results of a doctor appointment.
 type BillOfHealth struct {
+	Name        string `json:"name"`
 	Body        []byte `json:"body"`
 	ContentType string `json:"content_type"`
 }
@@ -74,7 +75,7 @@ func Regularity(interval time.Duration) Options {
 type HealthCheck func() (body []byte, contentType string, err error)
 
 // Schedule a health check with some options, bascially a doctor appointment.
-func (d *Doctor) Schedule(h HealthCheck, opts ...Options) error {
+func (d *Doctor) Schedule(h HealthCheck, name string, opts ...Options) error {
 
 	// check if an examination is already underway,
 	// if so do not allow further scheduling, dynamic
@@ -87,7 +88,8 @@ func (d *Doctor) Schedule(h HealthCheck, opts ...Options) error {
 	a := &appointment{
 		healthCheck: h,
 		result: BillOfHealth{
-			Body:        []byte("{\"report\": \"no health check results\""),
+			Name:        name,
+			Body:        []byte(fmt.Sprintf("{\"%s\": \"no health check results\"", name)),
 			ContentType: "application/json",
 		},
 		opts: options{interval: 5 * time.Second},
@@ -105,63 +107,86 @@ func (d *Doctor) Schedule(h HealthCheck, opts ...Options) error {
 }
 
 // Examine starts the series of health checks that were registered.
-func (d *Doctor) Examine() (<-chan bool, error) {
+func (d *Doctor) Examine() (<-chan time.Time, error) {
 
 	// officially start examinations, if we ever support
 	// dynamic/concurrent scheduling and examining this
 	// would be removed
 	d.examining = true
 
-	// range over each appointment
-	for k := range d.appts {
+	var wg sync.WaitGroup
+	out := make(chan time.Time)
 
-		// set a new ticker based on the scheduled regularity
-		ticker := time.NewTicker(d.appts[k].opts.interval)
+	// Start an output goroutine for each input channel in cs.  output
+	// copies values from c to out until c is closed, then calls wg.Done.
+	output := func(c <-chan time.Time) {
+		for n := range c {
+			out <- n
+		}
+		wg.Done()
+	}
+
+	// range over each appointment
+	for _, a := range d.appts {
+
 		quit := make(chan struct{})
 
 		// execute the appointment in a seperate goroutine
-		go func() {
+		go func(appt *appointment) {
+
+			// set a new ticker based on the scheduled regularity
+			ticker := time.NewTicker(appt.opts.interval)
+			wg.Add(1)
+			go output(ticker.C)
+
 			for {
 				select {
 				case <-ticker.C:
-					go func() {
-						body, contentType, err := d.appts[k].healthCheck()
+					go func(appt *appointment) {
+						body, contentType, err := appt.healthCheck()
 						if err != nil {
 							close(quit)
 							fmt.Printf("log: error: %s\n", err)
 							return
 						}
-						d.appts[k].setBillOfHealth(BillOfHealth{body, contentType})
-					}()
+						appt.set(BillOfHealth{appt.result.Name, body, contentType})
+					}(appt)
 				case <-quit:
 					ticker.Stop()
 					fmt.Println("Stopped the ticker!")
 					return
 				}
 			}
-		}()
+		}(a)
 
 		// if there is a TTL set, close the appointment at that time
-		if d.appts[k].opts.ttl > 0 {
+		if a.opts.ttl > 0 {
 
 			// it is acceptable to range over each appointment sequencially
 			// for setup, but TTL requires a goroutine to keep things moving
-			go func() {
-				time.Sleep(d.appts[k].opts.ttl)
+			go func(appt *appointment) {
+				time.Sleep(appt.opts.ttl)
 				close(quit)
-			}()
+			}(a)
 		}
 
 	}
 
-	return nil, nil
+	// Start a goroutine to close out once all the output goroutines are
+	// done.  This must start after the wg.Add call.
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	return out, nil
 }
 
 // Results returns a list of bills of health.
 func (d *Doctor) Results() []BillOfHealth {
 	boh := []BillOfHealth{}
 	for _, a := range d.appts {
-		boh = append(boh, a.billOfHealth())
+		boh = append(boh, a.get())
 	}
 	return boh
 }
