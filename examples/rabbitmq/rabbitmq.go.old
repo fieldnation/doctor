@@ -1,0 +1,63 @@
+// package main
+
+// import (
+// 	"fmt"
+// 	"net"
+// 	"time"
+
+// 	"github.com/fieldnation/doctor"
+// 	"github.com/streadway/amqp"
+// )
+
+// func main() {
+
+// 	addr := "amqp://localhost:5672/"
+
+// 	conn, err := amqp.DialConfig(addr, amqp.Config{
+// 		Dial: func(network, addr string) (net.Conn, error) {
+// 			return net.DialTimeout(network, addr, 5*time.Second)
+// 		},
+// 	})
+
+// 	if err != nil {
+// 		fmt.Printf("unable to connect to rabbitmq host: %s err: %s\n", addr, err)
+// 		return
+// 	}
+
+// 	s := &Server{
+// 		addr,
+// 		conn,
+// 		nil,
+// 	}
+
+// 	d := doctor.New()
+// 	d.Schedule(s.RabbitMQCloseNotifyHealthCheck, doctor.Regularity(5*time.Second))
+
+// 	// ch, err := r.conn.Channel()
+// 	// r.chn = ch
+// 	// if err != nil {
+// 	// 	return nil, fmt.Errorf("unable to open a queue channel: %s", err)
+// 	// }
+
+// 	// r.closeCh = make(chan *amqp.Error)
+// 	// r.conn.NotifyClose(r.closeCh)
+
+// }
+
+// // Server describes a server.
+// type Server struct {
+// 	addr string
+// 	conn *amqp.Connection
+// 	chn  *amqp.Channel
+// }
+
+// func (s *Server) RabbitMQCloseNotifyHealthCheck() doctor.BillOfHealth {
+// 	if s.conn == nil {
+// 		return doctor.BillOfHealth{
+// 			Name:        "RabbitMQ CloseNotify",
+// 			Body:        []byte("{\"status\":\"not ok\"}"),
+// 			ContentType: "application/json",
+// 		}
+// 	}
+// 	return doctor.BillOfHealth{}
+// }
