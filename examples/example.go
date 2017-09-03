@@ -10,7 +10,8 @@ import (
 func main() {
 	doc := doctor.New()
 
-	doc.Schedule("ping test", ping, doctor.Regularity(1*time.Second), doctor.TTL(5*time.Second))
+	doc.Schedule("ping", ping, doctor.Regularity(1*time.Second), doctor.TTL(5*time.Second))
+	doc.Schedule("pong", pong, doctor.Regularity(1*time.Second), doctor.TTL(10*time.Second))
 
 	ch, err := doc.Examine()
 	if err != nil {
@@ -18,12 +19,16 @@ func main() {
 	}
 
 	for boh := range ch {
-		fmt.Printf("ping started at %s", boh.Start())
+		fmt.Printf("%s started at %s\n", boh.Name(), boh.Start())
 	}
 }
 
 func ping(b doctor.BillOfHealth) doctor.BillOfHealth {
-	fmt.Println("yay")
-	b.Healthy()
+	fmt.Println("ping...")
+	return b
+}
+
+func pong(b doctor.BillOfHealth) doctor.BillOfHealth {
+	fmt.Println("pong...")
 	return b
 }

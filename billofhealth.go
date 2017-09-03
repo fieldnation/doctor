@@ -13,10 +13,19 @@ type BillOfHealth struct {
 	ContentType string `json:"content_type"`
 }
 
-// Healthy() returns healthy
-func (b BillOfHealth) Healthy() error {
-	b.healthy = true
-	return nil
+// Name returns the name of the BillOfHealth.
+func (b BillOfHealth) Name() string {
+	return b.name
+}
+
+// Healthy sets the BillOfHealth to a healthy state.
+func (b BillOfHealth) Healthy() bool {
+	return b.healthy
+}
+
+// SetHealth sets the BillOfHealth healthy value.
+func (b BillOfHealth) SetHealth(health bool) {
+	b.healthy = health
 }
 
 // Err returns a BillOfHealth Err
