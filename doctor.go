@@ -15,14 +15,14 @@ type Doctor struct {
 	appts     []*appointment
 	examining bool
 
-	// WaitGroup manages HealthCheck results
-	wg      sync.WaitGroup
-	results chan BillOfHealth
+	// WaitGroup manages HealthCheck BillOfHealth channel
+	wg sync.WaitGroup
+	c  chan BillOfHealth
 }
 
 // New returns a new doctor.
 func New() *Doctor {
-	return &Doctor{results: make(chan BillOfHealth)}
+	return &Doctor{c: make(chan BillOfHealth)}
 }
 
 // Schedule a health check with some options, bascially a doctor appointment.
@@ -30,7 +30,7 @@ func (d *Doctor) Schedule(name string, h HealthCheck, opts ...Options) error {
 
 	// ensure no duplicate health checks names exist
 	for _, a := range d.appts {
-		if a.result.name == name {
+		if a.boh.name == name {
 			return fmt.Errorf("unable to schedule health check: %q already exists", name)
 		}
 	}
@@ -38,7 +38,7 @@ func (d *Doctor) Schedule(name string, h HealthCheck, opts ...Options) error {
 	// create a new appointment
 	a := &appointment{
 		healthCheck: h,
-		result: BillOfHealth{
+		boh: BillOfHealth{
 			name:        name,
 			Body:        []byte("{\"report\": \"no health check results\"}"),
 			ContentType: "application/json",
@@ -73,10 +73,10 @@ func (d *Doctor) Examine() <-chan BillOfHealth {
 
 	go func() {
 		d.wg.Wait()
-		close(d.results)
+		close(d.c)
 	}()
 
-	return d.results
+	return d.c
 }
 
 func (d *Doctor) examine(appt *appointment) {
@@ -99,7 +99,7 @@ func (d *Doctor) examine(appt *appointment) {
 					boh.start = t
 					boh = a.healthCheck(boh)
 					a.set(boh)
-					d.results <- boh
+					d.c <- boh
 				}(app)
 			// listen for the quit signal to stop the ticker
 			case <-done:
@@ -119,8 +119,8 @@ func (d *Doctor) examine(appt *appointment) {
 	}
 }
 
-// Results returns a list of bills of health.
-func (d *Doctor) Results() []BillOfHealth {
+// BillsOfHealth returns a list of bills of health.
+func (d *Doctor) BillsOfHealth() []BillOfHealth {
 	boh := []BillOfHealth{}
 	for _, a := range d.appts {
 		boh = append(boh, a.get())

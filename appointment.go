@@ -7,18 +7,18 @@ type appointment struct {
 	opts        options
 
 	// mu protects the bill of health
-	mu     sync.RWMutex
-	result BillOfHealth
+	mu  sync.RWMutex
+	boh BillOfHealth
 }
 
-func (a *appointment) set(r BillOfHealth) {
+func (a *appointment) set(boh BillOfHealth) {
 	a.mu.Lock()
-	a.result = r
+	a.boh = boh
 	a.mu.Unlock()
 }
 
 func (a *appointment) get() BillOfHealth {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.result
+	return a.boh
 }

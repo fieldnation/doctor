@@ -21,11 +21,9 @@ func main() {
 }
 
 func ping(b doctor.BillOfHealth) doctor.BillOfHealth {
-	fmt.Println("ping...")
 	return b
 }
 
 func pong(b doctor.BillOfHealth) doctor.BillOfHealth {
-	fmt.Println("pong...")
 	return b
 }
