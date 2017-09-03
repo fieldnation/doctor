@@ -13,10 +13,7 @@ func main() {
 	doc.Schedule("ping", ping, doctor.Regularity(1*time.Second), doctor.TTL(5*time.Second))
 	doc.Schedule("pong", pong, doctor.Regularity(1*time.Second), doctor.TTL(10*time.Second))
 
-	ch, err := doc.Examine()
-	if err != nil {
-		panic(err)
-	}
+	ch := doc.Examine()
 
 	for boh := range ch {
 		fmt.Printf("%s started at %s\n", boh.Name(), boh.Start())

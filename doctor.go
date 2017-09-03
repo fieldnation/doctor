@@ -55,24 +55,20 @@ func (d *Doctor) Schedule(name string, h HealthCheck, opts ...Options) error {
 	d.appts = append(d.appts, a)
 
 	if d.examining {
-		if err := d.examine(a); err != nil {
-			return err
-		}
+		d.examine(a)
 	}
 
 	return nil
 }
 
 // Examine starts the series of health checks that were registered.
-func (d *Doctor) Examine() (<-chan BillOfHealth, error) {
+func (d *Doctor) Examine() <-chan BillOfHealth {
 
 	d.examining = true
 
 	// range over each appointment
 	for _, appt := range d.appts {
-		if err := d.examine(appt); err != nil {
-			return nil, err
-		}
+		d.examine(appt)
 	}
 
 	go func() {
@@ -80,10 +76,10 @@ func (d *Doctor) Examine() (<-chan BillOfHealth, error) {
 		close(d.results)
 	}()
 
-	return d.results, nil
+	return d.results
 }
 
-func (d *Doctor) examine(appt *appointment) error {
+func (d *Doctor) examine(appt *appointment) {
 
 	// add to the WaitGroup before starting the
 	// goroutine to avoid wg.Wait() returning
@@ -121,8 +117,6 @@ func (d *Doctor) examine(appt *appointment) error {
 			close(done)
 		}(appt, quit)
 	}
-
-	return nil
 }
 
 // Results returns a list of bills of health.
