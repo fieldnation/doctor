@@ -28,7 +28,7 @@ func New() *Doctor {
 }
 
 // Schedule a health check with some options, bascially a doctor appointment.
-func (d *Doctor) Schedule(appt Appointment, opts ...Options) error {
+func (d *Doctor) Schedule(appt Appointment, opts ...Option) error {
 
 	// ensure no duplicate health check names exist
 	for _, a := range d.calendar {
@@ -107,7 +107,7 @@ func (d *Doctor) examine(appt *appointment) {
 		for {
 			select {
 			case <-ticker.C:
-				go d.run(appt, nil)
+				go d.run(appt)
 			case <-done:
 				ticker.Stop()
 				d.wg.Done()
@@ -138,7 +138,7 @@ func (d *Doctor) BillsOfHealth() []BillOfHealth {
 // run takes an appointment and an optional callback,
 // if you don't need a callback, simply pass a nil value
 // as the second parameter
-func (d *Doctor) run(appt *appointment, callback func()) {
+func (d *Doctor) run(appt *appointment, callbacks ...func()) {
 
 	// get a copy, (not a pointer) of the latest
 	// bill of health in a thread safe manner
@@ -163,8 +163,8 @@ func (d *Doctor) run(appt *appointment, callback func()) {
 	// send the bill of health result down the output channel
 	d.c <- boh
 
-	// if a non-nil callback was provided, execute it
-	if callback != nil {
-		callback()
+	// execute callbacks
+	for _, f := range callbacks {
+		f()
 	}
 }

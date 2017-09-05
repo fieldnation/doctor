@@ -28,7 +28,7 @@ func main() {
 		Name:        "pong",
 		HealthCheck: pong,
 	}
-	pongOpts := []doctor.Options{doctor.Regularity(1 * time.Second), doctor.TTL(20 * time.Second)}
+	pongOpts := []doctor.Option{doctor.Regularity(1 * time.Second), doctor.TTL(20 * time.Second)}
 	doc.Schedule(pongAppt, pongOpts...)
 
 	// schedule an appointment that only occurs once
