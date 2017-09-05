@@ -31,6 +31,12 @@ func main() {
 	pongOpts := []doctor.Option{doctor.Regularity(1 * time.Second), doctor.TTL(20 * time.Second)}
 	doc.Schedule(pongAppt, pongOpts...)
 
+	// schedule an appointment that occurs every 5 seconds and runs forever with no TTL
+	doc.Schedule(doctor.Appointment{
+		Name:        "forever",
+		HealthCheck: forever,
+	}, doctor.Regularity(5*time.Second))
+
 	// schedule an appointment that only occurs once
 	//
 	// this example does not require any variadic options
@@ -55,5 +61,9 @@ func pong(b doctor.BillOfHealth) doctor.BillOfHealth {
 }
 
 func onlyOnce(b doctor.BillOfHealth) doctor.BillOfHealth {
+	return b
+}
+
+func forever(b doctor.BillOfHealth) doctor.BillOfHealth {
 	return b
 }
