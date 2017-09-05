@@ -12,10 +12,12 @@ type HealthCheck func(b BillOfHealth) BillOfHealth
 // Doctor represents a worker who will perform different
 // types of health checks periodically.
 type Doctor struct {
-	appts     []*appointment
+	calendar  []*appointment
 	examining bool
 
-	// WaitGroup manages HealthCheck BillOfHealth channel
+	// wg waits on HealthChecks complete
+	// scheduled executions or the BillOfHealth
+	// channel to finish draining
 	wg sync.WaitGroup
 	c  chan BillOfHealth
 }
@@ -28,8 +30,8 @@ func New() *Doctor {
 // Schedule a health check with some options, bascially a doctor appointment.
 func (d *Doctor) Schedule(appt Appointment, opts ...Options) error {
 
-	// ensure no duplicate health checks names exist
-	for _, a := range d.appts {
+	// ensure no duplicate health check names exist
+	for _, a := range d.calendar {
 		if a.boh.name == appt.Name {
 			return fmt.Errorf("unable to schedule health check: %q already exists", appt.Name)
 		}
@@ -39,12 +41,12 @@ func (d *Doctor) Schedule(appt Appointment, opts ...Options) error {
 	a := newAppt(appt.Name, appt.HealthCheck)
 
 	// set the request options on that appointment
-	for _, o := range opts { // for now we don't check err
-		o(&a.opts)
+	for _, o := range opts {
+		o(&a.opts) // for now we don't check option errs
 	}
 
 	// append the appointment to the doctors list
-	d.appts = append(d.appts, a)
+	d.calendar = append(d.calendar, a)
 
 	// if Examine() has been called, then have the
 	// appointment begin the examination
@@ -61,58 +63,61 @@ func (d *Doctor) Examine() <-chan BillOfHealth {
 	d.examining = true
 
 	// range over each appointment and begin the exam
-	for _, appt := range d.appts {
+	for _, appt := range d.calendar {
 		d.examine(appt)
 	}
 
-	// wait for the waitgroup to finish, then close the channel
+	// when the waitgroup finishes, close the channel
 	go func() {
 		d.wg.Wait()
 		close(d.c)
 	}()
 
+	// return the BillOfHealth recieving channel
 	return d.c
 }
 
 func (d *Doctor) examine(appt *appointment) {
 
+	// set state
+	interval := appt.opts.interval
+	ttl := appt.opts.ttl
+
 	// add to the WaitGroup before starting the
 	// goroutine to avoid wg.Wait() returning
 	// before wg.Add(1) can be executed
 	d.wg.Add(1)
-	done := make(chan struct{}) // close channel for the ticker
 
-	// execute the appointment in a seperate goroutine
-	go func(app *appointment, quit chan struct{}) {
+	// if the interval is less than one, simply
+	// execute the health check once in a seperate
+	// goroutine
+	if interval < 1 {
+		go d.run(appt, func() {
+			d.wg.Done()
+		})
+		return
+	}
 
-		// if the interval is less than one, simply
-		// execute the health check once
-		if app.opts.interval < 1 {
-			go d.run(appt, func() {
-				d.wg.Done()
-			})
-			return
-		}
-
+	// quit channel for the ticker
+	done := make(chan struct{})
+	go func() {
 		// create a ticker at the requested interval rate
 		// and execute the health check at every tick
-		ticker := time.NewTicker(app.opts.interval)
+		ticker := time.NewTicker(interval)
 		for {
 			select {
 			case <-ticker.C:
-				go func(a *appointment) {
-					go d.run(appt, nil)
-				}(app)
-			case <-quit: // quit signal to stop the ticker
+				go d.run(appt, nil)
+			case <-done:
 				ticker.Stop()
 				d.wg.Done()
 				return
 			}
 		}
-	}(appt, done)
+	}()
 
-	// if there is a TTL set, close the appointment at that time
-	if appt.opts.ttl > 0 {
+	// if a TTL is set, close the channel at that time
+	if ttl > 0 {
 		go func(app *appointment, quit chan struct{}) {
 			<-time.After(app.opts.ttl)
 			close(quit)
@@ -123,19 +128,42 @@ func (d *Doctor) examine(appt *appointment) {
 // BillsOfHealth returns a list of bills of health.
 func (d *Doctor) BillsOfHealth() []BillOfHealth {
 	bills := []BillOfHealth{}
-	for _, a := range d.appts {
+	for _, a := range d.calendar {
 		bills = append(bills, a.get())
 	}
 	return bills
 }
 
+// run executes a healthcheck scheduled by an appointment,
+// run takes an appointment and an optional callback,
+// if you don't need a callback, simply pass a nil value
+// as the second parameter
 func (d *Doctor) run(appt *appointment, callback func()) {
+
+	// get a copy, (not a pointer) of the latest
+	// bill of health in a thread safe manner
 	boh := appt.get()
+
+	// update the start time
 	boh.start = time.Now()
+
+	// pass the bill of health copy to the health check,
+	// execute the health check, and overwrite the
+	// bill of health copy with the new bill of health
+	// values returned by the health check
 	boh = appt.healthCheck(boh)
+
+	// update the end time
 	boh.end = time.Now()
+
+	// update the appointment with the new
+	// bill of health result, in a thread safe manner
 	appt.set(boh)
+
+	// send the bill of health result down the output channel
 	d.c <- boh
+
+	// if a non-nil callback was provided, execute it
 	if callback != nil {
 		callback()
 	}
