@@ -80,51 +80,43 @@ func (d *Doctor) examine(appt *appointment) {
 	// goroutine to avoid wg.Wait() returning
 	// before wg.Add(1) can be executed
 	d.wg.Add(1)
-	quit := make(chan struct{}) // close channel for the ticker
+	done := make(chan struct{}) // close channel for the ticker
 
 	// execute the appointment in a seperate goroutine
-	go func(app *appointment, done chan struct{}) {
-		if app.opts.interval > 0 {
-			ticker := time.NewTicker(app.opts.interval) // ticker set by regularity interval
-			for {
-				select {
-				// execute the healthcheck with every tick
-				case <-ticker.C:
-					go func(a *appointment) {
-						boh := a.get()
-						boh.start = time.Now()
-						boh = a.healthCheck(boh)
-						boh.end = time.Now()
-						a.set(boh)
-						d.c <- boh
-					}(app)
-				// listen for the quit signal to stop the ticker
-				case <-done:
-					ticker.Stop()
-					d.wg.Done()
-					return
-				}
-			}
-		} else {
-			go func(a *appointment) {
-				boh := a.get()
-				boh.start = time.Now()
-				boh = a.healthCheck(boh)
-				boh.end = time.Now()
-				a.set(boh)
-				d.c <- boh
+	go func(app *appointment, quit chan struct{}) {
+
+		// if the interval is less than one, simply
+		// execute the health check once
+		if app.opts.interval < 1 {
+			go d.run(appt, func() {
+				d.wg.Done()
+			})
+			return
+		}
+
+		// create a ticker at the requested interval rate
+		// and execute the health check at every tick
+		ticker := time.NewTicker(app.opts.interval)
+		for {
+			select {
+			case <-ticker.C:
+				go func(a *appointment) {
+					go d.run(appt, nil)
+				}(app)
+			case <-quit: // quit signal to stop the ticker
+				ticker.Stop()
 				d.wg.Done()
 				return
-			}(app)
+			}
 		}
-	}(appt, quit)
+	}(appt, done)
 
 	// if there is a TTL set, close the appointment at that time
 	if appt.opts.ttl > 0 {
-		go func(app *appointment, done chan struct{}) {
+		go func(app *appointment, quit chan struct{}) {
 			<-time.After(app.opts.ttl)
-			close(done)
-		}(appt, quit)
+			close(quit)
+		}(appt, done)
 	}
 }
 
@@ -135,4 +127,16 @@ func (d *Doctor) BillsOfHealth() []BillOfHealth {
 		bills = append(bills, a.get())
 	}
 	return bills
+}
+
+func (d *Doctor) run(appt *appointment, callback func()) {
+	boh := appt.get()
+	boh.start = time.Now()
+	boh = appt.healthCheck(boh)
+	boh.end = time.Now()
+	appt.set(boh)
+	d.c <- boh
+	if callback != nil {
+		callback()
+	}
 }
