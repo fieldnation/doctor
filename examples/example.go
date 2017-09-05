@@ -10,8 +10,15 @@ import (
 func main() {
 	doc := doctor.New()
 
-	doc.Schedule("ping", ping, doctor.Regularity(1*time.Second), doctor.TTL(5*time.Second))
-	doc.Schedule("pong", pong, doctor.Regularity(1*time.Second), doctor.TTL(10*time.Second))
+	doc.Schedule(doctor.Appointment{
+		Name:        "ping",
+		HealthCheck: ping,
+	}, doctor.Regularity(1*time.Second), doctor.TTL(5*time.Second))
+
+	doc.Schedule(doctor.Appointment{
+		Name:        "pong",
+		HealthCheck: pong,
+	}, doctor.Regularity(1*time.Second), doctor.TTL(20*time.Second))
 
 	ch := doc.Examine()
 

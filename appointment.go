@@ -2,6 +2,12 @@ package doctor
 
 import "sync"
 
+// Appointment describes a particular doctor appointment.
+type Appointment struct {
+	Name        string
+	HealthCheck HealthCheck
+}
+
 type appointment struct {
 	healthCheck HealthCheck
 	opts        options

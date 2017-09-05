@@ -26,20 +26,20 @@ func New() *Doctor {
 }
 
 // Schedule a health check with some options, bascially a doctor appointment.
-func (d *Doctor) Schedule(name string, h HealthCheck, opts ...Options) error {
+func (d *Doctor) Schedule(appt Appointment, opts ...Options) error {
 
 	// ensure no duplicate health checks names exist
 	for _, a := range d.appts {
-		if a.boh.name == name {
-			return fmt.Errorf("unable to schedule health check: %q already exists", name)
+		if a.boh.name == appt.Name {
+			return fmt.Errorf("unable to schedule health check: %q already exists", appt.Name)
 		}
 	}
 
 	// create a new appointment
 	a := &appointment{
-		healthCheck: h,
+		healthCheck: appt.HealthCheck,
 		boh: BillOfHealth{
-			name:        name,
+			name:        appt.Name,
 			Body:        []byte("{\"report\": \"no health check results\"}"),
 			ContentType: "application/json",
 		},
@@ -54,6 +54,8 @@ func (d *Doctor) Schedule(name string, h HealthCheck, opts ...Options) error {
 	// append the appointment to the doctors list
 	d.appts = append(d.appts, a)
 
+	// if Examine() has been called, then have the
+	// appointment begin the examination
 	if d.examining {
 		d.examine(a)
 	}
@@ -66,11 +68,12 @@ func (d *Doctor) Examine() <-chan BillOfHealth {
 
 	d.examining = true
 
-	// range over each appointment
+	// range over each appointment and begin the exam
 	for _, appt := range d.appts {
 		d.examine(appt)
 	}
 
+	// wait for the waitgroup to finish, then close the channel
 	go func() {
 		d.wg.Wait()
 		close(d.c)
@@ -121,9 +124,9 @@ func (d *Doctor) examine(appt *appointment) {
 
 // BillsOfHealth returns a list of bills of health.
 func (d *Doctor) BillsOfHealth() []BillOfHealth {
-	boh := []BillOfHealth{}
+	bills := []BillOfHealth{}
 	for _, a := range d.appts {
-		boh = append(boh, a.get())
+		bills = append(bills, a.get())
 	}
-	return boh
+	return bills
 }

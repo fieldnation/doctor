@@ -4,7 +4,6 @@ import "time"
 
 // BillOfHealth describes the results of a doctor appointment.
 type BillOfHealth struct {
-	err         error
 	start       time.Time
 	end         time.Time
 	name        string
@@ -26,11 +25,6 @@ func (b BillOfHealth) Healthy() bool {
 // SetHealth sets the BillOfHealth healthy value.
 func (b BillOfHealth) SetHealth(health bool) {
 	b.healthy = health
-}
-
-// Err returns a BillOfHealth Err
-func (b BillOfHealth) Err() error {
-	return b.err
 }
 
 // Start returns the start of BillOfHealth Timestamp
