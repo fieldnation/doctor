@@ -118,10 +118,10 @@ func (d *Doctor) examine(appt *appointment) {
 
 	// if a TTL is set, close the channel at that time
 	if ttl > 0 {
-		go func(app *appointment, quit chan struct{}) {
-			<-time.After(app.opts.ttl)
-			close(quit)
-		}(appt, done)
+		go func() {
+			<-time.After(ttl)
+			close(done)
+		}()
 	}
 }
 
