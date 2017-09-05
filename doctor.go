@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -23,12 +24,17 @@ type Doctor struct {
 }
 
 // New returns a new doctor.
-func New() *Doctor {
-	return &Doctor{c: make(chan BillOfHealth)}
-}
+func New() *Doctor { return &Doctor{} }
 
-// Schedule a health check with some options, bascially a doctor appointment.
+// Schedule a doctor appointment with a variety of options.
 func (d *Doctor) Schedule(appt Appointment, opts ...Option) error {
+
+	// since we don't have a strategy for concurrent/parallel
+	// scheduling during examination, lets remove that senario
+	// all together
+	if d.examining {
+		return errors.New("you cannot schedule an appointment if examinations have already begun")
+	}
 
 	// ensure no duplicate health check names exist
 	for _, a := range d.calendar {
@@ -60,7 +66,13 @@ func (d *Doctor) Schedule(appt Appointment, opts ...Option) error {
 // Examine starts the series of health checks that were registered.
 func (d *Doctor) Examine() <-chan BillOfHealth {
 
+	// set examination state
 	d.examining = true
+
+	// make a BillOfHealth channel with a buffer equal
+	// to the number of appointments scheduled on the
+	// doctors calendar
+	d.c = make(chan BillOfHealth, len(d.calendar))
 
 	// range over each appointment and begin the exam
 	for _, appt := range d.calendar {
@@ -92,9 +104,7 @@ func (d *Doctor) examine(appt *appointment) {
 	// execute the health check once in a seperate
 	// goroutine
 	if interval < 1 {
-		go d.run(appt, func() {
-			d.wg.Done()
-		})
+		go d.run(appt, func() { d.wg.Done() })
 		return
 	}
 
@@ -151,7 +161,7 @@ func (d *Doctor) run(appt *appointment, callbacks ...func()) {
 	// execute the health check, and overwrite the
 	// bill of health copy with the new bill of health
 	// values returned by the health check
-	boh = appt.healthCheck(boh)
+	boh = appt.hc(boh)
 
 	// update the end time
 	boh.end = time.Now()

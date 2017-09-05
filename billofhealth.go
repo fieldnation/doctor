@@ -4,12 +4,12 @@ import "time"
 
 // BillOfHealth describes the results of a doctor appointment.
 type BillOfHealth struct {
-	start       time.Time
-	end         time.Time
 	name        string
 	healthy     bool
-	Body        []byte `json:"body"`
-	ContentType string `json:"content_type"`
+	start       time.Time
+	end         time.Time
+	Body        []byte `json:"body, omitempty"`
+	ContentType string `json:"content_type, omitempty"`
 }
 
 // Name returns the name of the BillOfHealth.

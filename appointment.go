@@ -4,13 +4,13 @@ import "sync"
 
 // Appointment describes a particular doctor appointment.
 type Appointment struct {
-	Name        string
-	HealthCheck HealthCheck
+	Name        string      `json:"name, omitempty"`
+	HealthCheck HealthCheck `json:"healthcheck, omitempty"`
 }
 
 type appointment struct {
-	healthCheck HealthCheck
-	opts        options
+	hc   HealthCheck
+	opts options
 
 	// mu protects the bill of health
 	mu  sync.RWMutex
@@ -18,14 +18,11 @@ type appointment struct {
 }
 
 func newAppt(name string, hc HealthCheck) *appointment {
-	return &appointment{
-		healthCheck: hc,
-		boh: BillOfHealth{
-			name:        name,
-			Body:        []byte("{\"report\": \"no health check results\"}"),
-			ContentType: "application/json",
-		},
-	}
+	return &appointment{hc: hc, boh: BillOfHealth{
+		name:        name,
+		Body:        []byte("{\"report\": \"no health check results\"}"),
+		ContentType: "application/json",
+	}}
 }
 
 func (a *appointment) set(boh BillOfHealth) {
