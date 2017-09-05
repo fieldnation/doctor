@@ -11,10 +11,10 @@ type options struct {
 	verbose  bool
 }
 
-// TTL sets the Time to Live option value.
-func TTL(ttl time.Duration) Options {
+// Verbose sets the verbose option.
+func Verbose() Options {
 	return func(o *options) error {
-		o.ttl = ttl
+		o.verbose = true
 		return nil
 	}
 }
@@ -27,10 +27,10 @@ func Regularity(interval time.Duration) Options {
 	}
 }
 
-// Verbose sets the verbose option.
-func Verbose() Options {
+// TTL sets the Time to Live option value.
+func TTL(ttl time.Duration) Options {
 	return func(o *options) error {
-		o.verbose = true
+		o.ttl = ttl
 		return nil
 	}
 }

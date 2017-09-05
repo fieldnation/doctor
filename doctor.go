@@ -43,7 +43,6 @@ func (d *Doctor) Schedule(appt Appointment, opts ...Options) error {
 			Body:        []byte("{\"report\": \"no health check results\"}"),
 			ContentType: "application/json",
 		},
-		opts: options{interval: 5 * time.Second},
 	}
 
 	// set the request options on that appointment
@@ -92,24 +91,36 @@ func (d *Doctor) examine(appt *appointment) {
 
 	// execute the appointment in a seperate goroutine
 	go func(app *appointment, done chan struct{}) {
-		ticker := time.NewTicker(app.opts.interval) // ticker set by regularity interval
-		for {
-			select {
-			// execute the healthcheck with every tick
-			case t := <-ticker.C:
-				go func(a *appointment) {
-					boh := a.get()
-					boh.start = t
-					boh = a.healthCheck(boh)
-					a.set(boh)
-					d.c <- boh
-				}(app)
-			// listen for the quit signal to stop the ticker
-			case <-done:
-				ticker.Stop()
+		if app.opts.interval > 0 {
+			ticker := time.NewTicker(app.opts.interval) // ticker set by regularity interval
+			for {
+				select {
+				// execute the healthcheck with every tick
+				case t := <-ticker.C:
+					go func(a *appointment) {
+						boh := a.get()
+						boh.start = t
+						boh = a.healthCheck(boh)
+						a.set(boh)
+						d.c <- boh
+					}(app)
+				// listen for the quit signal to stop the ticker
+				case <-done:
+					ticker.Stop()
+					d.wg.Done()
+					return
+				}
+			}
+		} else {
+			go func(a *appointment) {
+				boh := a.get()
+				boh.start = time.Now()
+				boh = a.healthCheck(boh)
+				a.set(boh)
+				d.c <- boh
 				d.wg.Done()
 				return
-			}
+			}(app)
 		}
 	}(appt, quit)
 

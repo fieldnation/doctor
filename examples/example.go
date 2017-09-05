@@ -20,6 +20,11 @@ func main() {
 		HealthCheck: pong,
 	}, doctor.Regularity(1*time.Second), doctor.TTL(20*time.Second))
 
+	doc.Schedule(doctor.Appointment{
+		Name:        "only once",
+		HealthCheck: onlyOnce,
+	})
+
 	ch := doc.Examine()
 
 	for boh := range ch {
@@ -32,5 +37,9 @@ func ping(b doctor.BillOfHealth) doctor.BillOfHealth {
 }
 
 func pong(b doctor.BillOfHealth) doctor.BillOfHealth {
+	return b
+}
+
+func onlyOnce(b doctor.BillOfHealth) doctor.BillOfHealth {
 	return b
 }
