@@ -13,24 +13,30 @@ func main() {
 	doc := doctor.New()
 
 	// schedule an appointment that occurs every second for 5 seconds
+	//
+	// this example declares the appointment and variadic options
+	// within the schedule parameters
 	doc.Schedule(doctor.Appointment{
 		Name:        "ping",
 		HealthCheck: ping,
 	}, doctor.Regularity(1*time.Second), doctor.TTL(5*time.Second))
 
 	// schedule an appointment that occurs every second for 20 seconds
-	doc.Schedule(doctor.Appointment{
+	//
+	// this example declares the appointment and schedule ahead of time
+	pongAppt := doctor.Appointment{
 		Name:        "pong",
 		HealthCheck: pong,
-	}, doctor.Regularity(1*time.Second), doctor.TTL(20*time.Second))
+	}
+	pongOpts := []doctor.Options{doctor.Regularity(1 * time.Second), doctor.TTL(20 * time.Second)}
+	doc.Schedule(pongAppt, pongOpts...)
 
 	// schedule an appointment that only occurs once
-	doc.Schedule(doctor.Appointment{
-		Name:        "only once",
-		HealthCheck: onlyOnce,
-	})
+	//
+	// this example does not require any variadic options
+	doc.Schedule(doctor.Appointment{Name: "only once", HealthCheck: onlyOnce})
 
-	// start the examination
+	// start the examination and save the recieving channel
 	ch := doc.Examine()
 
 	// slurp on the channel to recieve bills of health resulting from each health check

@@ -17,6 +17,17 @@ type appointment struct {
 	boh BillOfHealth
 }
 
+func newAppt(name string, hc HealthCheck) *appointment {
+	return &appointment{
+		healthCheck: hc,
+		boh: BillOfHealth{
+			name:        name,
+			Body:        []byte("{\"report\": \"no health check results\"}"),
+			ContentType: "application/json",
+		},
+	}
+}
+
 func (a *appointment) set(boh BillOfHealth) {
 	a.mu.Lock()
 	a.boh = boh

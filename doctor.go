@@ -36,14 +36,7 @@ func (d *Doctor) Schedule(appt Appointment, opts ...Options) error {
 	}
 
 	// create a new appointment
-	a := &appointment{
-		healthCheck: appt.HealthCheck,
-		boh: BillOfHealth{
-			name:        appt.Name,
-			Body:        []byte("{\"report\": \"no health check results\"}"),
-			ContentType: "application/json",
-		},
-	}
+	a := newAppt(appt.Name, appt.HealthCheck)
 
 	// set the request options on that appointment
 	for _, o := range opts { // for now we don't check err
@@ -96,11 +89,12 @@ func (d *Doctor) examine(appt *appointment) {
 			for {
 				select {
 				// execute the healthcheck with every tick
-				case t := <-ticker.C:
+				case <-ticker.C:
 					go func(a *appointment) {
 						boh := a.get()
-						boh.start = t
+						boh.start = time.Now()
 						boh = a.healthCheck(boh)
+						boh.end = time.Now()
 						a.set(boh)
 						d.c <- boh
 					}(app)
@@ -116,6 +110,7 @@ func (d *Doctor) examine(appt *appointment) {
 				boh := a.get()
 				boh.start = time.Now()
 				boh = a.healthCheck(boh)
+				boh.end = time.Now()
 				a.set(boh)
 				d.c <- boh
 				d.wg.Done()
