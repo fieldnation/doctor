@@ -8,6 +8,7 @@ type BillOfHealth struct {
 	healthy     bool
 	start       time.Time
 	end         time.Time
+	closeNotify chan struct{}
 	Body        []byte `json:"body, omitempty"`
 	ContentType string `json:"content_type, omitempty"`
 }
@@ -35,4 +36,11 @@ func (b BillOfHealth) Start() time.Time {
 // End returns a BillOfHealth Timestamp
 func (b BillOfHealth) End() time.Time {
 	return b.end
+}
+
+// CloseNotify returns an channel that recieves empty structs.
+// When the appointment closes that channel will recieve an
+// empty struct.
+func (b BillOfHealth) CloseNotify() <-chan struct{} {
+	return b.closeNotify
 }

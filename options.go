@@ -8,6 +8,7 @@ type Option func(*options) error
 type options struct {
 	ttl      time.Duration
 	interval time.Duration
+	attempts int
 	verbose  bool
 }
 
@@ -31,6 +32,15 @@ func Regularity(interval time.Duration) Option {
 func TTL(ttl time.Duration) Option {
 	return func(o *options) error {
 		o.ttl = ttl
+		return nil
+	}
+}
+
+// MaxAttempts sets the maximum number of repeated failures
+// before closing the healthcheck.
+func MaxAttempts(attempts int) Option {
+	return func(o *options) error {
+		o.attempts = attempts
 		return nil
 	}
 }
