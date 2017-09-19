@@ -17,14 +17,21 @@ type appointment struct {
 	opts options
 
 	// mu protects the bill of health
-	mu  sync.RWMutex
-	boh BillOfHealth
+	mu     sync.RWMutex
+	status status
+	boh    BillOfHealth
+}
+
+type status struct {
+	quit   chan struct{}
+	closed bool
 }
 
 func newAppt(name string, hc HealthCheck) *appointment {
 	return &appointment{
-		name: name,
-		hc:   hc,
+		name:   name,
+		hc:     hc,
+		status: status{},
 		boh: BillOfHealth{
 			name:        name,
 			closeNotify: make(chan struct{}),
