@@ -1,7 +1,6 @@
 package doctor
 
 import (
-	"fmt"
 	"sync"
 	"time"
 )
@@ -43,8 +42,11 @@ func (c *calendar) get(name string) (*appointment, bool) {
 func (c *calendar) delete(name string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	close(c.exams[name].status.quit)
-	delete(c.exams, name)
+	a, ok := c.get(name)
+	if ok {
+		a.close()
+		delete(c.exams, name)
+	}
 }
 
 func (c *calendar) close() {
@@ -54,8 +56,7 @@ func (c *calendar) close() {
 		if v.status.closed {
 			continue
 		}
-		fmt.Printf("closing %q\n", v.name)
-		close(v.status.quit)
+		v.close()
 	}
 }
 
@@ -66,6 +67,10 @@ func (c *calendar) begin() chan BillOfHealth {
 		c.examine(a)
 	}
 	return c.c
+}
+
+func (c *calendar) wait() {
+	c.wg.Wait()
 }
 
 func (c *calendar) examine(appt *appointment) {
@@ -85,21 +90,13 @@ func (c *calendar) examine(appt *appointment) {
 			return
 		}
 		tick := time.NewTicker(interval)
-		done := make(chan struct{})
-
-		/*
-			if err := d.r.Set(appt.name, done); err != nil {
-				return // do not execute the ticker
-			}
-		*/
 		for {
 			select {
 			case <-tick.C:
 				go c.run(appt)
-			case <-done:
+			case <-appt.status.done:
 				tick.Stop()
 				c.wg.Done()
-				appt.close()
 				return
 			}
 		}
@@ -109,11 +106,7 @@ func (c *calendar) examine(appt *appointment) {
 	if ttl > 0 {
 		go func() {
 			<-time.After(ttl)
-			a, ok := c.get(appt.name)
-			if ok {
-				close(a.status.quit)
-				c.delete(appt.name)
-			}
+			c.delete(appt.name)
 		}()
 	}
 }
@@ -123,15 +116,7 @@ func (c *calendar) examine(appt *appointment) {
 // if you don't need a callback, simply pass a nil value
 // as the second parameter
 func (c *calendar) run(appt *appointment, callbacks ...func()) {
-
-	// send the bill of health result down the output channel
-	if c.c == nil {
-		fmt.Printf("d.c is nil: %q\n", appt.name)
-		return
-	}
-	c.c <- appt.run()
-
-	// execute callbacks
+	c.c <- appt.run() // send the bill of health result
 	for _, f := range callbacks {
 		f()
 	}

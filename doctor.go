@@ -53,9 +53,8 @@ func (d *Doctor) Examine() <-chan BillOfHealth {
 
 	// when the waitgroup finishes, close the channel
 	go func() {
-		d.cal.wg.Wait()
+		d.cal.wait()
 		close(c)
-		c = nil
 	}()
 
 	// return the BillOfHealth recieving channel

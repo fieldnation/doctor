@@ -23,7 +23,7 @@ type appointment struct {
 }
 
 type status struct {
-	quit   chan struct{}
+	done   chan struct{}
 	closed bool
 }
 
@@ -47,6 +47,10 @@ func (a *appointment) get() BillOfHealth {
 }
 
 func (a *appointment) close() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	close(a.status.done)
+	a.status.closed = true
 	close(a.boh.closeNotify)
 }
 
