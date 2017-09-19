@@ -18,20 +18,15 @@ type appointment struct {
 
 	// mu protects the bill of health
 	mu     sync.RWMutex
-	status status
-	boh    BillOfHealth
-}
-
-type status struct {
 	done   chan struct{}
 	closed bool
+	boh    BillOfHealth
 }
 
 func newAppt(name string, hc HealthCheck) *appointment {
 	return &appointment{
-		name:   name,
-		hc:     hc,
-		status: status{},
+		name: name,
+		hc:   hc,
 		boh: BillOfHealth{
 			name:        name,
 			closeNotify: make(chan struct{}),
@@ -49,8 +44,8 @@ func (a *appointment) get() BillOfHealth {
 func (a *appointment) close() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	close(a.status.done)
-	a.status.closed = true
+	close(a.done)
+	a.closed = true
 	close(a.boh.closeNotify)
 }
 

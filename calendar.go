@@ -53,7 +53,7 @@ func (c *calendar) close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, v := range c.exams {
-		if v.status.closed {
+		if v.closed {
 			continue
 		}
 		v.close()
@@ -94,7 +94,7 @@ func (c *calendar) examine(appt *appointment) {
 			select {
 			case <-tick.C:
 				go c.run(appt)
-			case <-appt.status.done:
+			case <-appt.done:
 				tick.Stop()
 				c.wg.Done()
 				return
