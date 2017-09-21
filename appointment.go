@@ -27,6 +27,7 @@ func newAppt(name string, hc HealthCheck) *appointment {
 	return &appointment{
 		name: name,
 		hc:   hc,
+		done: make(chan struct{}),
 		boh: BillOfHealth{
 			name:        name,
 			closeNotify: make(chan struct{}),
@@ -44,9 +45,11 @@ func (a *appointment) get() BillOfHealth {
 func (a *appointment) close() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	close(a.done)
-	a.closed = true
-	close(a.boh.closeNotify)
+	if !a.closed {
+		close(a.done)
+		close(a.boh.closeNotify)
+		a.closed = !a.closed
+	}
 }
 
 // run executes a healthcheck scheduled by an appointment,

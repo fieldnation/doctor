@@ -17,7 +17,10 @@ type calendar struct {
 }
 
 func newCalendar() *calendar {
-	return &calendar{exams: make(map[string]*appointment)}
+	return &calendar{
+		exams: make(map[string]*appointment),
+		c:     make(chan BillOfHealth),
+	}
 }
 
 func (c *calendar) len() int {
@@ -52,11 +55,8 @@ func (c *calendar) delete(name string) {
 func (c *calendar) close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for _, v := range c.exams {
-		if v.closed {
-			continue
-		}
-		v.close()
+	for _, a := range c.exams {
+		a.close()
 	}
 }
 
@@ -75,20 +75,21 @@ func (c *calendar) wait() {
 
 func (c *calendar) examine(appt *appointment) {
 
-	// set state
-	interval := appt.opts.interval
-	ttl := appt.opts.ttl
-
 	// add to the WaitGroup before starting the
 	// goroutine to avoid wg.Wait() returning
 	// before wg.Add(1) can be executed
 	c.wg.Add(1)
 
+	// set state
+	interval := appt.opts.interval
+	ttl := appt.opts.ttl
+
+	if interval < 1 {
+		go c.run(appt, func() { c.wg.Done() })
+		return
+	}
+
 	go func() {
-		if interval < 1 {
-			c.run(appt, func() { c.wg.Done() })
-			return
-		}
 		tick := time.NewTicker(interval)
 		for {
 			select {
@@ -106,7 +107,7 @@ func (c *calendar) examine(appt *appointment) {
 	if ttl > 0 {
 		go func() {
 			<-time.After(ttl)
-			c.delete(appt.name)
+			appt.close()
 		}()
 	}
 }
