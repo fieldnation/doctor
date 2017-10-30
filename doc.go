@@ -12,6 +12,7 @@ type HealthCheck func(b BillOfHealth) BillOfHealth
 // types of health checks periodically.
 type Doctor struct {
 	cal *calendar
+	closeNotify chan struct{}
 }
 
 // New returns a new doctor.
@@ -46,7 +47,7 @@ func (d *Doctor) Schedule(a Appointment, opts ...Option) error {
 }
 
 // Examine starts the series of health checks that were registered.
-func (d *Doctor) Examine() <-chan BillOfHealth {
+func (d *Doctor) Examine() (<-chan BillOfHealth, <-chan CloseNotify struct{}) {
 
 	// range over each appointment and begin the exam
 	c := d.cal.begin()

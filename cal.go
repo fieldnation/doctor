@@ -91,6 +91,8 @@ func (c *calendar) examine(appt *appointment) {
 	interval := appt.opts.interval
 	ttl := appt.opts.ttl
 
+	time.Sleep(appt.opts.sleep)
+
 	if interval < 1 {
 		go c.run(appt, func() { c.wg.Done() })
 		return

@@ -8,6 +8,7 @@ type Option func(*options) error
 type options struct {
 	ttl      time.Duration
 	interval time.Duration
+	sleep    time.Duration
 	attempts int
 	verbose  bool
 }
@@ -37,10 +38,19 @@ func TTL(ttl time.Duration) Option {
 }
 
 // MaxAttempts sets the maximum number of repeated failures
-// before closing the healthcheck.
+// before closing the health check.
 func MaxAttempts(attempts int) Option {
 	return func(o *options) error {
 		o.attempts = attempts
+		return nil
+	}
+}
+
+// Sleep waits a period of time before starting
+// health check execution.
+func Sleep(sleep time.Duration) Option {
+	return func(o *options) error {
+		o.sleep = sleep
 		return nil
 	}
 }
