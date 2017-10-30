@@ -9,8 +9,9 @@ type calendar struct {
 	// wg waits on HealthChecks complete
 	// scheduled executions or the BillOfHealth
 	// channel to finish draining
-	wg sync.WaitGroup
-	c  chan BillOfHealth
+	wg     sync.WaitGroup
+	closed bool
+	c      chan BillOfHealth
 
 	mu    sync.RWMutex
 	exams map[string]*appointment
@@ -32,7 +33,9 @@ func (c *calendar) len() int {
 func (c *calendar) set(a *appointment) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.exams[a.name] = a
+	if !c.closed {
+		c.exams[a.name] = a
+	}
 }
 
 func (c *calendar) get(name string) (*appointment, bool) {
@@ -58,6 +61,7 @@ func (c *calendar) close() {
 	for _, a := range c.exams {
 		a.close()
 	}
+	c.closed = true
 }
 
 func (c *calendar) begin() chan BillOfHealth {
@@ -117,7 +121,12 @@ func (c *calendar) examine(appt *appointment) {
 // if you don't need a callback, simply pass a nil value
 // as the second parameter
 func (c *calendar) run(appt *appointment, callbacks ...func()) {
-	c.c <- appt.run() // send the bill of health result
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.closed {
+		boh := appt.run() // send the bill of health result
+		c.c <- boh
+	}
 	for _, f := range callbacks {
 		f()
 	}

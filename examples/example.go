@@ -28,7 +28,7 @@ func main() {
 	doc.Schedule(doctor.Appointment{
 		Name:        "forever",
 		HealthCheck: forever,
-	}, doctor.Regularity(5*time.Second))
+	}, doctor.Regularity(100*time.Millisecond))
 
 	// schedule an appointment that only occurs once
 	//
