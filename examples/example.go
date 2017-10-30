@@ -55,7 +55,7 @@ func main() {
 	})
 
 	// start the examination and record the recieving channel
-	ch := doc.Examine()
+	ch, closeNotify := doc.Examine()
 
 	// lets run doctor for 5 seconds and then gracefully stop execution
 	go func() {
@@ -64,8 +64,14 @@ func main() {
 	}()
 
 	// slurp on the channel to recieve bills of health
-	for boh := range ch {
-		// print out info on the bill of health
-		fmt.Printf("%s started at %s\n", boh.Name(), boh.Start())
+	for {
+		select {
+		case boh := <-ch:
+			// print out info on the bill of health
+			fmt.Printf("%s started at %s\n", boh.Name(), boh.Start())
+		case <-closeNotify:
+			fmt.Println("Stopping gracefully")
+			return
+		}
 	}
 }

@@ -11,7 +11,7 @@ type HealthCheck func(b BillOfHealth) BillOfHealth
 // Doctor represents a worker who will perform different
 // types of health checks periodically.
 type Doctor struct {
-	cal *calendar
+	cal         *calendar
 	closeNotify chan struct{}
 }
 
@@ -47,19 +47,21 @@ func (d *Doctor) Schedule(a Appointment, opts ...Option) error {
 }
 
 // Examine starts the series of health checks that were registered.
-func (d *Doctor) Examine() (<-chan BillOfHealth, <-chan CloseNotify struct{}) {
+func (d *Doctor) Examine() (<-chan BillOfHealth, <-chan struct{}) {
 
 	// range over each appointment and begin the exam
 	c := d.cal.begin()
+	closeNotify := make(chan struct{})
 
 	// when the waitgroup finishes, close the channel
 	go func() {
 		d.cal.wait()
+		close(closeNotify)
 		close(c)
 	}()
 
 	// return the BillOfHealth recieving channel
-	return c
+	return c, closeNotify
 }
 
 // BillsOfHealth returns a list of bills of health.
