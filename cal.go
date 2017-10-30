@@ -9,12 +9,15 @@ type calendar struct {
 	// wg waits on HealthChecks complete
 	// scheduled executions or the BillOfHealth
 	// channel to finish draining
-	wg     sync.WaitGroup
-	closed bool
-	c      chan BillOfHealth
+	wg sync.WaitGroup
+	c  chan BillOfHealth
 
-	mu    sync.RWMutex
-	exams map[string]*appointment
+	// mu protects the map of exams as well as
+	// the flag indicating if the BillOfHealth
+	// channel is open or closed
+	mu     sync.RWMutex
+	closed bool
+	exams  map[string]*appointment
 }
 
 func newCalendar() *calendar {
