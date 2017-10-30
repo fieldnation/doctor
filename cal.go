@@ -124,8 +124,7 @@ func (c *calendar) run(appt *appointment, callbacks ...func()) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if !c.closed {
-		boh := appt.run() // send the bill of health result
-		c.c <- boh
+		c.c <- appt.run() // send the bill of health result
 	}
 	for _, f := range callbacks {
 		f()
