@@ -6,7 +6,7 @@ import (
 )
 
 // HealthCheck performs a checkup and returns a bill of health report.
-type HealthCheck func(b BillOfHealth) BillOfHealth
+type HealthCheck func(b Health) Health
 
 // Doctor represents a worker who will perform different
 // types of health checks periodically.
@@ -47,7 +47,7 @@ func (d *Doctor) Schedule(a Appointment, opts ...Option) error {
 }
 
 // Examine starts the series of health checks that were registered.
-func (d *Doctor) Examine() (<-chan BillOfHealth, <-chan struct{}) {
+func (d *Doctor) Examine() (<-chan Health, <-chan struct{}) {
 
 	// range over each appointment and begin the exam
 	c := d.cal.begin()
@@ -65,8 +65,8 @@ func (d *Doctor) Examine() (<-chan BillOfHealth, <-chan struct{}) {
 }
 
 // BillsOfHealth returns a list of bills of health.
-func (d *Doctor) BillsOfHealth() []BillOfHealth {
-	bills := []BillOfHealth{}
+func (d *Doctor) BillsOfHealth() []Health {
+	bills := []Health{}
 	for _, a := range d.cal.exams {
 		bills = append(bills, a.get())
 	}

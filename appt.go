@@ -20,7 +20,7 @@ type appointment struct {
 	mu     sync.RWMutex
 	done   chan struct{}
 	closed bool
-	boh    BillOfHealth
+	h      Health
 }
 
 func newAppt(name string, hc HealthCheck) *appointment {
@@ -28,7 +28,7 @@ func newAppt(name string, hc HealthCheck) *appointment {
 		name: name,
 		hc:   hc,
 		done: make(chan struct{}),
-		boh: BillOfHealth{
+		h: Health{
 			name:        name,
 			closeNotify: make(chan struct{}),
 			Body:        []byte("{\"report\": \"no health check results\"}"),
@@ -36,10 +36,10 @@ func newAppt(name string, hc HealthCheck) *appointment {
 		}}
 }
 
-func (a *appointment) get() BillOfHealth {
+func (a *appointment) get() Health {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.boh
+	return a.h
 }
 
 func (a *appointment) close() {
@@ -47,7 +47,7 @@ func (a *appointment) close() {
 	defer a.mu.Unlock()
 	if !a.closed {
 		close(a.done)
-		close(a.boh.closeNotify)
+		close(a.h.closeNotify)
 		a.closed = !a.closed
 	}
 }
@@ -55,7 +55,7 @@ func (a *appointment) close() {
 // run executes a healthcheck scheduled by an appointment,
 // run takes an BillOfHealth channel to send the result
 // to and an optional callback as a convience
-func (a *appointment) run() BillOfHealth {
+func (a *appointment) run() Health {
 
 	// since we are under mutex protection
 	// we can directly reference the boh
@@ -63,16 +63,16 @@ func (a *appointment) run() BillOfHealth {
 	defer a.mu.Unlock()
 
 	// update the start time
-	a.boh.start = time.Now()
+	a.h.start = time.Now()
 
 	// pass the bill of health copy to the health check,
 	// execute the health check, and overwrite the
 	// bill of health copy with the new bill of health
 	// values returned by the health check
-	a.boh = a.hc(a.boh)
+	a.h = a.hc(a.h)
 
 	// update the end time
-	a.boh.end = time.Now()
+	a.h.end = time.Now()
 
-	return a.boh
+	return a.h
 }

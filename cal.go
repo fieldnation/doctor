@@ -10,7 +10,7 @@ type calendar struct {
 	// scheduled executions or the BillOfHealth
 	// channel to finish draining
 	wg sync.WaitGroup
-	c  chan BillOfHealth
+	c  chan Health
 
 	// mu protects the map of exams as well as
 	// the flag indicating if the BillOfHealth
@@ -23,7 +23,7 @@ type calendar struct {
 func newCalendar() *calendar {
 	return &calendar{
 		exams: make(map[string]*appointment),
-		c:     make(chan BillOfHealth),
+		c:     make(chan Health),
 	}
 }
 
@@ -67,7 +67,7 @@ func (c *calendar) close() {
 	c.closed = true
 }
 
-func (c *calendar) begin() chan BillOfHealth {
+func (c *calendar) begin() chan Health {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, a := range c.exams {
@@ -91,14 +91,16 @@ func (c *calendar) examine(appt *appointment) {
 	interval := appt.opts.interval
 	ttl := appt.opts.ttl
 
-	time.Sleep(appt.opts.sleep)
-
 	if interval < 1 {
-		go c.run(appt, func() { c.wg.Done() })
+		go func() {
+			time.Sleep(appt.opts.sleep)
+			go c.run(appt, func() { c.wg.Done() })
+		}()
 		return
 	}
 
 	go func() {
+		time.Sleep(appt.opts.sleep)
 		tick := time.NewTicker(interval)
 		for {
 			select {
