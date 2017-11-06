@@ -69,6 +69,9 @@ func main() {
 		case h := <-ch:
 			// print out info on the bill of health
 			fmt.Printf("%s started at %s\n", h.Name(), h.Start())
+			if h.Name() == "" {
+				fmt.Printf("%#v\n", h)
+			}
 		case <-done:
 			fmt.Println("Stopping gracefully")
 			return
